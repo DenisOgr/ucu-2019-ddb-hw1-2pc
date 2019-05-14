@@ -1,0 +1,28 @@
+---
+version: '2'
+services:
+  app-2pc:
+    container_name: app-2pc
+    restart: always
+    build: .
+    tty: true
+    volumes:
+        - .:/app
+
+  db-2pc:
+      image: postgres:10.8
+      container_name: db-2pc
+      restart: always
+      environment:
+        POSTGRES_USER: pc
+        POSTGRES_PASSWORD: pc
+        DB_ACCOUNT: accounts
+        DB_FLY: flights
+        DB_HOTEL: hotels
+      ports:
+        - "5432:5432"
+      volumes:
+          - $PWD/docker/config/postgres/entry_points:/docker-entrypoint-initdb.d
+      command: postgres -c max_prepared_transactions=64
+volumes:
+    mi2: {}

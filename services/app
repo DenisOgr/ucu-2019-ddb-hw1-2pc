@@ -1,0 +1,62 @@
+#!/usr/local/bin/python3.7
+
+import psycopg2
+from psycopg2._psycopg import DatabaseError
+
+acc_conn   = psycopg2.connect("dbname='accounts' user='pc' host='db-2pc' password='pc' port='5432'")
+fly_conn   = psycopg2.connect("dbname='flights' user='pc' host='db-2pc' password='pc' port='5432'")
+hotel_conn = psycopg2.connect("dbname='hotels' user='pc' host='db-2pc' password='pc' port='5432'")
+
+acc_cur   = acc_conn.cursor()
+fly_cur   = fly_conn.cursor()
+hotel_cur = hotel_conn.cursor()
+
+def view_user(acc_cur):
+    acc_cur.execute("SELECT * FROM default_schema.account_table WHERE account_id=1;")
+    return acc_cur.fetchone()
+
+acc_conn.tpc_begin(acc_conn.xid(42, "11", "acc_conn1"))
+fly_conn.tpc_begin(acc_conn.xid(42, "2", "fly_conn"))
+hotel_conn.tpc_begin(acc_conn.xid(42, "3", "hotel_conn"))
+
+print("User before transaction: ", view_user(acc_cur))
+try:
+    book_hotel = ("Denys Porplenko", "Hilton", "2019-05-13", "2019-05-14", "123", "")
+    hotel_cur.execute("INSERT INTO default_schema.hotel_table (client_name, hotel_name, arrival, departure, tr_id, message) "
+                      "VALUES (%s, %s, %s, %s, %s,%s)",
+                      book_hotel)
+
+    print("Book hotel")
+    book_fly = ("Denys Porplenko", "123", "New-York", "Tokio", "2019-05-14", "123", "")
+    fly_cur.execute("INSERT INTO default_schema.fly_table (client_name, fly_number, f, t, date,  tr_id, message) "
+                      "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                      book_fly)
+    print("Book flight")
+
+    acc_cur.execute("UPDATE default_schema.account_table SET amount=amount-50")
+    print("Charge money (50$)")
+
+    acc_conn.tpc_prepare()
+    fly_conn.tpc_prepare()
+    hotel_conn.tpc_prepare()
+except DatabaseError as e:
+    print(e)
+    print("Rollback")
+    acc_conn.tpc_rollback()
+    fly_conn.tpc_rollback()
+    hotel_conn.tpc_rollback()
+else:
+    print("Commit")
+    #To make failure situation (comment this line of code and run script several times)
+    acc_conn.tpc_commit()
+    fly_conn.tpc_commit()
+    hotel_conn.tpc_commit()
+
+print("User after transaction: ", view_user(acc_cur))
+acc_cur.close()
+fly_cur.close()
+hotel_cur.close()
+
+acc_conn.close()
+fly_conn.close()
+hotel_conn.close()

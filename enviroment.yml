@@ -1,0 +1,6 @@
+name: ucu-2019-db-hw1-2pc
+channels:
+  - conda-forge
+dependencies:
+  - pip:
+    - psycopg2
